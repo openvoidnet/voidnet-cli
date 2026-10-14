@@ -29,7 +29,7 @@ fi
 echo "[exp-cli] cliName=$CLI_NAME"
 echo "[exp-cli] deps: go mod tidy"
 (cd "$EXP" && go mod tidy)
-echo "[exp-cli] build: go build -o voidnet-cli-exp ./cmd/$CLI_NAME"
+echo "[exp-cli] build: go build -o voidnet ./cmd/$CLI_NAME"
 (cd "$EXP" && go build -o voidnet "./cmd/$CLI_NAME")
 echo "[exp-cli] smoke: ./voidnet-cli-exp --help"
 "$EXP/voidnet" --help > /tmp/exp-cli-help.txt
