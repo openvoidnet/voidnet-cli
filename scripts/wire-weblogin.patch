@@ -1,0 +1,20 @@
+--- a/internal/cli/root.go
++++ b/internal/cli/root.go
+@@ -9,6 +9,7 @@
+ 	"github.com/openvoidnet/voidnet-cli/internal/cli/llm"
+ 	"github.com/openvoidnet/voidnet-cli/internal/cli/mcp"
+ 	"github.com/openvoidnet/voidnet-cli/internal/cli/publisher"
++	"github.com/openvoidnet/voidnet-cli/internal/weblogin"
+ 	"github.com/openvoidnet/voidnet-cli/internal/clierrors"
+ 	"github.com/openvoidnet/voidnet-cli/internal/config"
+ 	"github.com/openvoidnet/voidnet-cli/internal/explorer"
+@@ -72,6 +73,9 @@
+ 	if err := llm.InitLlmRoot(rootCmd); err != nil {
+ 		return nil, fmt.Errorf("init llm: %w", err)
+ 	}
++	if err := weblogin.InitWebloginRoot(rootCmd); err != nil {
++		return nil, fmt.Errorf("init weblogin: %w", err)
++	}
+ 	if err := initConfigureCmd(rootCmd); err != nil {
+ 		return nil, fmt.Errorf("init configure: %w", err)
+ 	}

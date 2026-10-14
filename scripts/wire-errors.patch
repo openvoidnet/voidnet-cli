@@ -1,0 +1,20 @@
+--- a/cmd/voidnet/main.go
++++ b/cmd/voidnet/main.go
+@@ -6,6 +6,7 @@
+ 
+ 	"github.com/openvoidnet/voidnet-cli/internal/cli"
+ 	"github.com/openvoidnet/voidnet-cli/internal/clierrors"
++	"github.com/openvoidnet/voidnet-cli/internal/weblogin"
+ )
+ 
+ // version and buildTime can be set at build time using Go linker flags:
+@@ -27,6 +28,9 @@
+ 	if err := cli.Execute(); err != nil {
+ 		var rendered interface{ Rendered() bool }
+ 		if !errors.As(err, &rendered) || !rendered.Rendered() {
++			// Unrendered API failures get the three-truth taxonomy once,
++			// centrally: dead token vs wrong scope vs everything else.
++			err = weblogin.TranslateAPIError(err)
+ 			fmt.Fprintln(os.Stderr, err)
+ 		}
+ 		os.Exit(clierrors.ExitCode(err))

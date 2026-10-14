@@ -1,0 +1,50 @@
+contract: voidnet-cli-exp browser login
+version: 1.0.0
+parties:
+  cli: voidnet-cli-exp (generated Cobra CLI + hand weblogin command)
+  accounts: Void Accounts (OAuth IdP, authorization_code + PKCE)
+  net: openvoidnet publisher API (machine-token mint)
+oauth_client:
+  id: voidnet-cli
+  kind: public
+  secret: none
+  allowed_scopes: [publisher_login]
+  trusted: false
+  redirect_rule: exact registered URI, or loopback prefix http://127.0.0.1(:port)/ and http://[::1](:port)/ per RFC 8252 (public clients only)
+cli_flow:
+  loopback: listen 127.0.0.1:0, path /callback (any free port)
+  pkce: verifier 32 random bytes base64url, challenge base64url(sha256(verifier)), method S256 (mandatory)
+  state: random CSRF token, validated on callback (mismatch aborts, no exchange)
+  authorize_url:
+    base: '{accountsBase}/api/auth/oauth/authorize'
+    params: "response_type=code, client_id=voidnet-cli, redirect_uri={loopback}/callback, scope=publisher_login, state={state}, code_challenge={challenge}, code_challenge_method=S256"
+  token_request:
+    endpoint: POST {accountsBase}/api/auth/oauth/token (JSON)
+    body: "grant_type=authorization_code, client_id=voidnet-cli, code={code}, redirect_uri={loopback}/callback, code_verifier={verifier}"
+    result: "access_token, token_type=Bearer, expires_in=3600, scope"
+  exchange_request:
+    endpoint: POST {mgmtBase}/api/publisher/v1/auth/exchange (JSON, public)
+    body: "accounts_token={accountsToken}, scopes?=subset of grantable, app_ids?=subset of consent binding"
+    result_http: 201
+    result: "token=vnp-pub-* once-only, last4, id, scopes, app_ids, expires_at=30d"
+  storage: OS keychain when available, chmod-0600 file fallback; same key the generated CLI reads for --publisher-token
+  logout: POST {mgmtBase}/api/publisher/v1/auth/revoke-self (bearer) must succeed, then local wipe (keyring delete + config remove)
+server_chain:
+  authorize_stranger: "307 to /login?oauth=true with returnTo={authorizeUrl} (relative resume path)"
+  authorize_session_untrusted: "307 to /consent with client_id, redirect_uri, scope, state, code_challenge(+method), app_ids hints"
+  authorize_session_trusted: "302 {redirect_uri}?code={code}&state={state}"
+  consent_approve: "200 with redirect '{redirect_uri}?code={code}&state={state}' and scope_words [...]"
+  code_policy: single-use, 10-minute expiry, bound to client_id + redirect_uri + challenge
+  token_policy: PKCE challenge recomputed and compared; used/expired/mismatched code yields invalid_grant
+  exchange_policy:
+    grants: read + verify only (LOGIN_GRANTABLE from @void/publisher-core)
+    binding: token app_ids = intersection(consent selection, request selection); null means all
+    rejects: service (non-user-bound) accounts tokens
+error_codes:
+  authorize: {invalid_client: 401, invalid_redirect: 400, pkce_required: 400}
+  token: {invalid_grant: 400 (unknown|reused|expired|mismatch|verifier), invalid_client: 401}
+  exchange: {missing_token: 400, invalid_token: 401, no_publisher: 403, no_grantable_scope: 400}
+  revoke_self: "401 Invalid publisher token (missing/malformed) or Invalid or expired publisher token (lookup failed); success yields success=true"
+  consent: {no_session: 401, foreign_apps: 403 invalid_selection}
+grantable_scopes: [apps:read, apps:verify, metering:read, keys:read]
+never_granted_by_login: [apps:publish, keys:rotate]

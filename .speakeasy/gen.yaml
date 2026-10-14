@@ -1,0 +1,83 @@
+configVersion: 2.0.0
+generation:
+  sdkClassName: SDK
+  usageSnippets:
+    optionalPropertyRendering: withExample
+    sdkInitStyle: constructor
+  fixes:
+    nameResolutionFeb2025: false
+    parameterOrderingFeb2024: false
+    requestResponseComponentNamesFeb2024: false
+    securityFeb2025: false
+    sharedErrorComponentsApr2025: false
+    sharedNestedComponentsJan2026: false
+    nameOverrideFeb2026: false
+  auth:
+    oAuth2ClientCredentialsEnabled: false
+    oAuth2PasswordEnabled: false
+    hoistGlobalSecurity: true
+  schemas:
+    allOfMergeStrategy: shallowMerge
+  requestBodyFieldName: ""
+  versioningStrategy: automatic
+  persistentEdits: {}
+  tests:
+    generateTests: true
+    generateNewTests: false
+    skipResponseBodyAssertions: false
+cli:
+  version: 0.3.7
+  additionalDependencies: {}
+  agentEnvironmentDetection: true
+  arrayFlagFormat: repeatable
+  classifiedErrors: false
+  cliName: voidnet
+  defaultColor: auto
+  defaultTimeout: ""
+  distribution:
+    homebrew:
+      enabled: false
+      tap: ""
+    nfpm:
+      enabled: false
+      formats: deb,rpm
+      license: ""
+      maintainer: ""
+    winget:
+      enabled: false
+      license: ""
+      packageIdentifier: ""
+      publisher: ""
+      publisherUrl: ""
+      repositoryOwner: ""
+  enableCustomCodeRegions: false
+  envVarPrefix: VOIDNET
+  fixFlags:
+    encodePathParams: false
+  generateRelease: true
+  helpStyle: auto
+  idiomaticMethodCollisionNames: false
+  imports:
+    option: openapi
+    paths:
+      callbacks: pkg/models/callbacks
+      errors: pkg/models/sdkerrors
+      operations: pkg/models/operations
+      shared: pkg/models/shared
+      webhooks: pkg/models/webhooks
+  interactiveAuth: true
+  interactiveByDefault: true
+  interactiveMode: true
+  interactiveTheme:
+    accentColor: '#38BDF8'
+    dimmedColor: '#64748B'
+    errorColor: '#F87171'
+    subtleColor: '#475569'
+    successColor: '#4ADE80'
+  jqRawOutput: false
+  packageName: github.com/openvoidnet/voidnet-cli
+  removeStutter: true
+  retryFlagsVisibility: visible
+  retryMethodPolicy: spec
+  rootVersionFlag: false
+  serverSelectionFlag: visible

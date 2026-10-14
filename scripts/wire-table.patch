@@ -1,0 +1,71 @@
+--- a/internal/output/output.go
++++ b/internal/output/output.go
+@@ -1355,9 +1355,14 @@
+ }
+ 
+ // printTableSingle renders a single struct as a vertical key-value table.
++// List envelopes (one slice-of-structs field, e.g. {apps: [...]}) render the
++// slice as rows so -o table works on every list operation.
+ func printTableSingle(out io.Writer, v reflect.Value) error {
+ 	cols := collectTableColumns(v.Type())
+ 	if len(cols) == 0 {
++		if rows, ok := singleSliceField(v); ok {
++			return printTableRows(out, rows)
++		}
+ 		return fmt.Errorf("no displayable fields found")
+ 	}
+ 
+@@ -1427,6 +1432,53 @@
+ 	return cols
+ }
+ 
++// singleSliceField unwraps a struct holding exactly one slice-of-structs
++// field (list envelope) for row rendering. Reports false otherwise.
++func singleSliceField(v reflect.Value) (reflect.Value, bool) {
++	for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
++		if v.IsNil() {
++			return reflect.Value{}, false
++		}
++		v = v.Elem()
++	}
++	t := v.Type()
++	var found reflect.Value
++	lists := 0
++	for i := 0; i < t.NumField(); i++ {
++		fv := v.Field(i)
++		if !fv.IsValid() {
++			continue
++		}
++		ft := fv.Type()
++		for ft.Kind() == reflect.Ptr {
++			ft = ft.Elem()
++		}
++		if ft.Kind() != reflect.Slice && ft.Kind() != reflect.Array {
++			continue
++		}
++		elem := ft.Elem()
++		for elem.Kind() == reflect.Ptr {
++			elem = elem.Elem()
++		}
++		if elem.Kind() != reflect.Struct {
++			continue
++		}
++		lists++
++		found = fv
++	}
++	if lists != 1 {
++		return reflect.Value{}, false
++	}
++	fv := found
++	for fv.Kind() == reflect.Ptr {
++		if fv.IsNil() {
++			return reflect.Value{}, false
++		}
++		fv = fv.Elem()
++	}
++	return fv, true
++}
++
+ // formatTableCell converts a reflect.Value to a string for table display.
+ func formatTableCell(v reflect.Value) string {
+ 	for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {

@@ -1,0 +1,48 @@
+--- a/internal/output/output.go
++++ b/internal/output/output.go
+@@ -25,6 +25,7 @@
+ 	"github.com/openvoidnet/voidnet-cli/internal/flagutil"
+ 	"github.com/openvoidnet/voidnet-cli/internal/sdk/models/operations"
+ 	"github.com/openvoidnet/voidnet-cli/internal/sdk/sdkinternal/utils"
++	"github.com/openvoidnet/voidnet-cli/internal/weblogin"
+ )
+ 
+ // cliName is the CLI binary name, injected at generation time.
+@@ -549,7 +550,9 @@
+ 		fmt.Fprintf(out, "\nError: %s\n", err.Error())
+ 	}
+ 	if classification.StatusCode == 401 || classification.StatusCode == 403 {
+-		fmt.Fprintf(out, "\nHint: run '%s configure' to set up or update your credentials.\n", cliName)
++		if hint := weblogin.AuthHint(classification.StatusCode, classification.RawBody); hint != "" {
++			fmt.Fprintf(out, "\nHint: %s.\n", hint)
++		}
+ 	}
+ }
+ 
+@@ -567,7 +570,7 @@
+ 					}
+ 				}
+ 				if statusCode == 401 || statusCode == 403 {
+-					object["_hint"] = fmt.Sprintf("run '%s configure' to set up or update your credentials", cliName)
++					object["_hint"] = weblogin.AuthHint(statusCode, body)
+ 				}
+ 				envelope = object
+ 			} else {
+@@ -576,7 +579,7 @@
+ 					wrapped["status_code"] = statusCode
+ 				}
+ 				if statusCode == 401 || statusCode == 403 {
+-					wrapped["_hint"] = fmt.Sprintf("run '%s configure' to set up or update your credentials", cliName)
++					wrapped["_hint"] = weblogin.AuthHint(statusCode, body)
+ 				}
+ 				envelope = wrapped
+ 			}
+@@ -591,7 +594,7 @@
+ 			wrapped["body"] = body
+ 		}
+ 		if statusCode == 401 || statusCode == 403 {
+-			wrapped["_hint"] = fmt.Sprintf("run '%s configure' to set up or update your credentials", cliName)
++			wrapped["_hint"] = weblogin.AuthHint(statusCode, body)
+ 		}
+ 		envelope = wrapped
+ 	}

@@ -1,0 +1,22 @@
+speakeasyVersion: 1.800.1
+sources: {}
+targets:
+    voidnet-cli:
+        source: voidnet-combined
+workflow:
+    workflowVersion: 1.0.0
+    speakeasyVersion: pinned
+    sources:
+        voidnet-combined:
+            inputs:
+                - location: ../../../apps/gateway/openapi/openapi.json
+                  modelNamespace: gateway
+                - location: ../../../apps/net/openapi/openapi.json
+                  modelNamespace: publisher
+            overlays:
+                - location: overlays/cli-grouping.yaml
+            output: merged_spec/voidnet-merged.yaml
+    targets:
+        voidnet-cli:
+            target: cli
+            source: voidnet-combined

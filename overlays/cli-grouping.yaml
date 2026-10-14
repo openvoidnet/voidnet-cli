@@ -1,0 +1,101 @@
+overlay: 1.0.0
+info:
+  title: Voidnet exp CLI grouping overlay (buyer + publisher, single CLI)
+  version: 1.0.0
+actions:
+  # --- publisher ops: group under `publisher` (source spec has no tags) ---
+  - target: $.paths['/api/publisher/v1/apps'].get
+    update:
+      tags: [publisher]
+  - target: $.paths['/api/publisher/v1/apps/{id}/keys'].get
+    update:
+      tags: [publisher]
+  - target: $.paths['/api/publisher/v1/apps/{id}/keys'].post
+    update:
+      tags: [publisher]
+  - target: $.paths['/api/publisher/v1/apps/{id}/metering'].get
+    update:
+      tags: [publisher]
+  - target: $.paths['/api/publisher/v1/apps/{id}/verify'].post
+    update:
+      tags: [publisher]
+  - target: $.paths['/api/publisher/v1/apps/{id}/publish'].post
+    update:
+      tags: [publisher]
+  - target: $.paths['/api/publisher/v1/apps/{id}/refresh'].post
+    update:
+      tags: [publisher]
+  - target: $.paths['/api/publisher/v1/auth/exchange'].post
+    update:
+      tags: [publisher]
+  - target: $.paths['/api/publisher/v1/auth/revoke-self'].post
+    update:
+      tags: [publisher]
+  # --- buyer live-routing ops: wire ApiKeyAuth (source spec ops carry no security) ---
+  - target: $.paths['/v1-beta/mcp/{username}/{appname}'].post
+    update:
+      security:
+        - ApiKeyAuth: []
+  - target: $.paths['/v1-beta/mcp/{username}/{appname}'].get
+    update:
+      security:
+        - ApiKeyAuth: []
+  - target: $.paths['/v1-beta/llm/{username}/{appname}'].post
+    update:
+      security:
+        - ApiKeyAuth: []
+  - target: $.paths['/v1-beta/llm/{username}/{appname}'].get
+    update:
+      security:
+        - ApiKeyAuth: []
+  # --- buyer public ops: stay public regardless of merged global security ---
+  - target: $.paths['/health'].get
+    update:
+      security: []
+  - target: $.paths['/health/live'].get
+    update:
+      security: []
+  - target: $.paths['/oauth/token'].post
+    update:
+      security: []
+  - target: $.paths['/authorize'].get
+    update:
+      security: []
+  - target: $.paths['/authorize'].post
+    update:
+      security: []
+  - target: $.paths['/.well-known/oauth-protected-resource'].get
+    update:
+      security: []
+  - target: $.paths['/.well-known/oauth-authorization-server'].get
+    update:
+      security: []
+  - target: $.paths['/.well-known/jwks.json'].get
+    update:
+      security: []
+  # --- queryMcp is GET: no body is routable, so none is advertised ---
+  - target: $.paths['/v1-beta/mcp/{username}/{appname}'].get.requestBody
+    remove: true
+  # --- merged info: one short line on the front page, details live in per-command help ---
+  - target: $.info
+    update:
+      title: voidnet
+      description: Sign in once, manage publisher apps, call buyer APIs.
+  # --- real examples replace invented placeholders in generated help ---
+  - target: $.paths['/authorize'].get.parameters[1]
+    update:
+      example: http://127.0.0.1:5051/callback
+  - target: $.paths['/authorize'].get.parameters[0]
+    update:
+      example: vnb-sk-0123456789abcdef0123456789abcdef
+  # --- merged server list: both origins, prod first ---
+  - target: $.servers
+    update:
+      - url: https://api.openvoidnet.com
+        description: Production gateway (buyer live-routing)
+      - url: https://openvoidnet.com
+        description: Production publisher API
+      - url: http://localhost:8090
+        description: Local gateway
+      - url: http://localhost:3000
+        description: Local publisher API (net pnpm dev)
