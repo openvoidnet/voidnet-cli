@@ -273,19 +273,39 @@ func rollbackMint(ctx context.Context, mgmtBase, token string, stderr io.Writer,
 
 // mintMachineToken calls the generated publisher exchange op. Storage and
 // verification are separate steps so every entry path proves before it keeps.
-func mintMachineToken(ctx context.Context, mgmtBase, accountsToken string, stderr io.Writer, debug bool) (token, id string, err error) {
+func mintMachineToken(ctx context.Context, mgmtBase, accountsToken string, stderr io.Writer, debug bool) (token string, grant *publisher.ExchangeResult, err error) {
 	client := expsdk.New()
 	callCtx, cancel := context.WithTimeout(ctx, httpTimeout)
 	defer cancel()
 	res, err := client.Publisher.ExchangeTokens(callCtx, publisher.ExchangeRequest{AccountsToken: accountsToken}, operations.WithServerURL(mgmtBase))
 	if err != nil {
-		return "", "", fmt.Errorf("machine token mint failed: %w", err)
+		return "", nil, fmt.Errorf("machine token mint failed: %w", err)
 	}
 	if res == nil || res.ExchangeResult == nil || res.ExchangeResult.Token == "" {
-		return "", "", fmt.Errorf("machine token mint returned empty token")
+		return "", nil, fmt.Errorf("machine token mint returned empty token")
 	}
 	trace(stderr, debug, "machine token minted (30d, read+verify)")
-	return res.ExchangeResult.Token, res.ExchangeResult.ID, nil
+	return res.ExchangeResult.Token, res.ExchangeResult, nil
+}
+
+// profileFromGrant builds the stored profile from a fresh exchange result.
+func profileFromGrant(grant *publisher.ExchangeResult, username string, now time.Time) Profile {
+	p := Profile{
+		Username:   username,
+		Scopes:     append([]string{}, grant.Scopes...),
+		VerifiedAt: now.UTC().Format(time.RFC3339),
+		TokenID:    grant.ID,
+		Last4:      grant.Last4,
+		AllApps:    true,
+	}
+	if !grant.ExpiresAt.IsZero() {
+		p.ExpiresAt = grant.ExpiresAt.UTC().Format(time.RFC3339)
+	}
+	if appIDs, ok := grant.GetAppIds().Get(); ok && appIDs != nil {
+		p.AllApps = false
+		p.AppIDs = append([]string{}, *appIDs...)
+	}
+	return p
 }
 
 // storeMachineToken persists through the same store the generated CLI reads.
@@ -307,7 +327,7 @@ func storeMachineToken(token string, stderr io.Writer, debug bool) error {
 
 // LoginWithToken verifies a directly supplied token before storing anything.
 // Rejects garbage at the door instead of persisting a dead credential.
-func LoginWithToken(ctx context.Context, out, stderr io.Writer, mgmtBase, token string, debug bool) error {
+func LoginWithToken(ctx context.Context, out, stderr io.Writer, mgmtBase, token, username string, debug bool) error {
 	if token == "" {
 		return fmt.Errorf("empty token, nothing stored")
 	}
@@ -318,6 +338,14 @@ func LoginWithToken(ctx context.Context, out, stderr io.Writer, mgmtBase, token 
 		return fmt.Errorf("supplied token rejected by publisher API, nothing stored: %w", err)
 	}
 	if err := storeMachineToken(token, stderr, debug); err != nil {
+		return err
+	}
+	last4 := token
+	if len(token) > 4 {
+		last4 = token[len(token)-4:]
+	}
+	prof := Profile{Username: username, VerifiedAt: time.Now().UTC().Format(time.RFC3339), Last4: last4, AllApps: true}
+	if err := SaveProfile(prof, stderr); err != nil {
 		return err
 	}
 	fmt.Fprintf(out, "Signed in. Token verified (apps=%d) and stored.\n", n)
@@ -349,12 +377,15 @@ func revokeStoredToken(ctx context.Context, mgmtBase string, stderr io.Writer, d
 	if err := config.SaveConfig(cfg); err != nil {
 		return fmt.Errorf("config save failed: %w", err)
 	}
+	if err := ClearProfile(); err != nil {
+		return err
+	}
 	fmt.Fprintln(stderr, "local credentials wiped")
 	return nil
 }
 
 // Login runs the full browser dance and stores the machine token.
-func Login(ctx context.Context, out, stderr io.Writer, authBase, mgmtBase string, debug bool) error {
+func Login(ctx context.Context, out, stderr io.Writer, authBase, mgmtBase, username string, debug bool) error {
 	flowCtx, cancel := context.WithTimeout(ctx, loginTimeout)
 	defer cancel()
 	verifier, challenge, state, err := newPKCEPair(stderr, debug)
@@ -389,7 +420,7 @@ func Login(ctx context.Context, out, stderr io.Writer, authBase, mgmtBase string
 	if err != nil {
 		return err
 	}
-	token, tokenID, err := mintMachineToken(flowCtx, mgmtBase, accountsToken, stderr, debug)
+	token, grant, err := mintMachineToken(flowCtx, mgmtBase, accountsToken, stderr, debug)
 	if err != nil {
 		return err
 	}
@@ -401,7 +432,11 @@ func Login(ctx context.Context, out, stderr io.Writer, authBase, mgmtBase string
 		rollbackMint(flowCtx, mgmtBase, token, stderr, debug)
 		return err
 	}
-	fmt.Fprintf(out, "Signed in. Machine token %s verified and stored.\n", tokenID)
+	if err := SaveProfile(profileFromGrant(grant, username, time.Now()), stderr); err != nil {
+		rollbackMint(flowCtx, mgmtBase, token, stderr, debug)
+		return err
+	}
+	fmt.Fprintf(out, "Signed in. Machine token %s verified and stored.\n", grant.ID)
 	return nil
 }
 

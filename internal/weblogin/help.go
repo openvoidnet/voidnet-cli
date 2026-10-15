@@ -21,6 +21,7 @@ var mainCommands = map[string]bool{
 	"llm":       true,
 	"health":    true,
 	"whoami":    true,
+	"profile":   true,
 	"help":      true,
 }
 
@@ -43,7 +44,7 @@ var helpSections = []helpSection{
 	{"sign in", []string{"login", "logout"}},
 	{"manage", []string{"publisher"}},
 	{"consume", []string{"mcp", "llm"}},
-	{"check", []string{"health", "whoami"}},
+	{"check", []string{"health", "whoami", "profile"}},
 }
 
 // HelpCommand replaces the default help command. Bare `help` shows the

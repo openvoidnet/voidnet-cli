@@ -6,12 +6,16 @@
 package weblogin
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/openvoidnet/voidnet-cli/internal/client"
+	"golang.org/x/term"
 )
 
 // dryRunNoop honors the framework contract: no network, no keychain, no
@@ -29,6 +33,24 @@ func dryRunNoop(cmd *cobra.Command, action, detail string) error {
 // isMachineToken enforces the vnp-pub-* shape before anything is stored.
 func isMachineToken(tok string) bool {
 	return strings.HasPrefix(tok, "vnp-pub-") && len(tok) > len("vnp-pub-")
+}
+
+// resolveUsername returns the flag value, or prompts once on interactive
+// terminals. Empty stays empty: the server 404s honestly on a wrong name,
+// and `voidnet profile` shows what is stored.
+func resolveUsername(cmd *cobra.Command) (string, error) {
+	if u, _ := cmd.Flags().GetString("username"); u != "" {
+		return strings.TrimSpace(u), nil
+	}
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return "", nil
+	}
+	fmt.Fprint(cmd.ErrOrStderr(), "Publisher username (for buyer URLs, Enter to skip): ")
+	line, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil {
+		return "", nil
+	}
+	return strings.TrimSpace(line), nil
 }
 
 // InitWebloginRoot registers top-level login/logout, mirroring the hand CLI
@@ -57,19 +79,24 @@ Flags override environment, environment overrides production defaults:
 			if client.IsDryRun(cmd) {
 				return dryRunNoop(cmd, "login", "open browser for Void Accounts sign-in, approve consent, redeem code, mint + verify + store machine token")
 			}
+			username, err := resolveUsername(cmd)
+			if err != nil {
+				return err
+			}
 			if tok, _ := cmd.Flags().GetString("token"); tok != "" {
 				if !isMachineToken(tok) {
 					return fmt.Errorf("--token must start with vnp-pub-, nothing stored")
 				}
-				return LoginWithToken(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), ep.MgmtBase, tok, client.IsDebug(cmd))
+				return LoginWithToken(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), ep.MgmtBase, tok, username, client.IsDebug(cmd))
 			}
-			return Login(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), ep.AuthBase, ep.MgmtBase, client.IsDebug(cmd))
+			return Login(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), ep.AuthBase, ep.MgmtBase, username, client.IsDebug(cmd))
 		},
 	}
 	loginCmd.Flags().String("auth-base", "", "Void Accounts origin (overrides VOIDNET_AUTH_BASE)")
 	loginCmd.Flags().String("token", "", "Store a console-issued vnp-pub-* token directly (verified before storing; headless/CI)")
 	loginCmd.Flags().String("mgmt-base", "", "Publisher API origin (overrides VOIDNET_MGMT_BASE)")
 	loginCmd.Flags().String("env", "", "Environment shortcut: production|development (sets both origins; explicit base flags win)")
+	loginCmd.Flags().String("username", "", "Publisher username to store (skips the prompt)")
 
 	logoutCmd := &cobra.Command{
 		Use:   "logout",
@@ -95,7 +122,37 @@ Flags override environment, environment overrides production defaults:
 	logoutCmd.Flags().String("mgmt-base", "", "Publisher API origin (overrides VOIDNET_MGMT_BASE)")
 	logoutCmd.Flags().String("env", "", "Environment shortcut: production|development (explicit --mgmt-base wins)")
 
-	for _, sub := range []*cobra.Command{loginCmd, logoutCmd} {
+	profileCmd := &cobra.Command{
+		Use:   "profile",
+		Short: "Show the stored login profile",
+		Long:  `Shows what login learned and stored: username, granted scopes, app binding, token expiry, and verification time. Nothing secret is printed. Absent profile means never logged in on this machine.`,
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			prof, err := LoadProfile()
+			if err != nil {
+				return fmt.Errorf("no stored profile — run voidnet login")
+			}
+			out := cmd.OutOrStdout()
+			user := prof.Username
+			if user == "" {
+				user = "(not set — pass --username at login)"
+			}
+			fmt.Fprintf(out, "Username: %s\n", user)
+			if len(prof.Scopes) > 0 {
+				fmt.Fprintf(out, "Scopes: %s\n", strings.Join(prof.Scopes, ", "))
+			} else {
+				fmt.Fprintln(out, "Scopes: unknown (token supplied directly)")
+			}
+			fmt.Fprintf(out, "Apps: %s\n", prof.BindingLine())
+			fmt.Fprintf(out, "Token: %s\n", prof.ExpiryStatus(time.Now()))
+			if prof.VerifiedAt != "" {
+				fmt.Fprintf(out, "Verified: %s\n", prof.VerifiedAt)
+			}
+			return nil
+		},
+	}
+
+	for _, sub := range []*cobra.Command{loginCmd, logoutCmd, profileCmd} {
 		exists := false
 		for _, current := range parent.Commands() {
 			if current.Name() == sub.Name() {
