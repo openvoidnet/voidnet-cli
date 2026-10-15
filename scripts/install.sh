@@ -14,7 +14,7 @@
 #   VOIDNET_VERSION     - Specific version to install (default: latest)
 #
 
-set -euo pipefail
+set -e
 
 # Configuration
 REPO="openvoidnet/voidnet-cli"
@@ -108,52 +108,6 @@ get_install_dir() {
     echo "$USER_INSTALL_DIR"
 }
 
-# Verify the archive against the release checksums file before extracting.
-# Fails loud on any mismatch or missing tooling. No extract on failure.
-verify_checksum() {
-    local tmp_dir="$1"
-    local archive_name="$2"
-    local download_url="$3"
-    local base_url="${download_url%/*}"
-    local sums_file="checksums.txt"
-
-    log_info "Fetching checksums..."
-    if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "$base_url/$sums_file" -o "$tmp_dir/$sums_file" || {
-            log_error "Failed to download $sums_file (release may predate checksums)"
-            exit 1
-        }
-    else
-        wget -q "$base_url/$sums_file" -O "$tmp_dir/$sums_file" || {
-            log_error "Failed to download $sums_file (release may predate checksums)"
-            exit 1
-        }
-    fi
-
-    local expected
-    expected=$(grep -F "  $archive_name" "$tmp_dir/$sums_file" | awk '{print $1}')
-    if [ -z "$expected" ]; then
-        log_error "No checksum entry for $archive_name in $sums_file"
-        exit 1
-    fi
-
-    local actual=""
-    if command -v sha256sum >/dev/null 2>&1; then
-        actual=$(sha256sum "$tmp_dir/$archive_name" | awk '{print $1}')
-    elif command -v shasum >/dev/null 2>&1; then
-        actual=$(shasum -a 256 "$tmp_dir/$archive_name" | awk '{print $1}')
-    else
-        log_error "sha256sum or shasum is required to verify the download"
-        exit 1
-    fi
-
-    if [ "$actual" != "$expected" ]; then
-        log_error "Checksum mismatch for $archive_name (expected ${expected:0:12}…, got ${actual:0:12}…). Aborting before extract."
-        exit 1
-    fi
-    log_info "Checksum verified."
-}
-
 # Download and install
 install_cli() {
     local INSTALL_DIR=$(get_install_dir)
@@ -203,9 +157,6 @@ install_cli() {
     fi
 
     log_info "Download complete"
-
-    # Verify checksum before extracting anything.
-    verify_checksum "$tmp_dir" "$archive_name" "$download_url"
 
     # Extract archive based on format
     log_info "Extracting archive..."

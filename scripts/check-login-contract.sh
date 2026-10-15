@@ -72,6 +72,14 @@ echo "[contract] 11: revoke-self garbage token"
 C="$(timeout 20 curl -s -m 15 -X POST "$NET/api/publisher/v1/auth/revoke-self" -H "Authorization: Bearer garbage" -o /tmp/contract-body.txt -w "%{http_code}")"
 check "revoke-self invalid" "401" "publisher token" "$C
 $(cat /tmp/contract-body.txt)"
+echo "[contract] 12: caller profile without bearer"
+C="$(timeout 20 curl -s -m 15 "$NET/api/publisher/v1/auth/me" -o /tmp/contract-body.txt -w "%{http_code}")"
+check "profile missing bearer" "400" "missing_token" "$C
+$(cat /tmp/contract-body.txt)"
+echo "[contract] 13: caller profile garbage token"
+C="$(timeout 20 curl -s -m 15 "$NET/api/publisher/v1/auth/me" -H "Authorization: Bearer garbage" -o /tmp/contract-body.txt -w "%{http_code}")"
+check "profile invalid token" "401" "invalid_token" "$C
+$(cat /tmp/contract-body.txt)"
 echo "[contract] result: PASS=$PASS FAIL=$FAIL"
 if [ "$FAIL" -ne 0 ]; then echo "[contract] CONTRACT BROKEN" >&2; exit 1; fi
 echo "[contract] CONTRACT OK"

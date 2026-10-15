@@ -236,6 +236,34 @@ func redeemCode(ctx context.Context, authBase, code, redirectURI, verifier strin
 	return parsed.AccessToken, nil
 }
 
+// fetchCallerProfile resolves identity + publisher state in one round trip
+// using the accounts token. The publisherToken scheme is reused purely as a
+// bearer carrier: the wire format is identical (Authorization: Bearer ...),
+// and this endpoint accepts accounts tokens by design.
+func fetchCallerProfile(ctx context.Context, mgmtBase, accountsToken string, stderr io.Writer, debug bool) (displayName, username string, publisher, suspended bool, err error) {
+	client := expsdk.New(
+		expsdk.WithSecurity(components.Security{PublisherToken: &accountsToken}),
+	)
+	callCtx, cancel := context.WithTimeout(ctx, httpTimeout)
+	defer cancel()
+	res, err := client.Publisher.ReadCallerProfile(callCtx, operations.WithServerURL(mgmtBase))
+	if err != nil {
+		return "", "", false, false, fmt.Errorf("caller profile fetch failed: %w", err)
+	}
+	if res == nil || res.CallerProfile == nil {
+		return "", "", false, false, fmt.Errorf("caller profile returned empty")
+	}
+	prof := res.CallerProfile
+	namePtr, _ := prof.Username.Get()
+	name := ""
+	if namePtr != nil {
+		name = *namePtr
+	}
+	trace(stderr, debug, fmt.Sprintf("caller profile: display=%q user=%q publisher=%v", prof.DisplayName, name, prof.Publisher))
+	susp := prof.Suspended != nil && *prof.Suspended
+	return prof.DisplayName, name, prof.Publisher, susp, nil
+}
+
 // verifyMachineToken proves the token against the publisher API and returns
 // the visible app count. Anything but a clean list is a failed verification.
 func verifyMachineToken(ctx context.Context, mgmtBase, token string, stderr io.Writer, debug bool) (int, error) {
@@ -289,14 +317,15 @@ func mintMachineToken(ctx context.Context, mgmtBase, accountsToken string, stder
 }
 
 // profileFromGrant builds the stored profile from a fresh exchange result.
-func profileFromGrant(grant *publisher.ExchangeResult, username string, now time.Time) Profile {
+func profileFromGrant(grant *publisher.ExchangeResult, username, displayName string, now time.Time) Profile {
 	p := Profile{
-		Username:   username,
-		Scopes:     append([]string{}, grant.Scopes...),
-		VerifiedAt: now.UTC().Format(time.RFC3339),
-		TokenID:    grant.ID,
-		Last4:      grant.Last4,
-		AllApps:    true,
+		DisplayName: displayName,
+		Username:    username,
+		Scopes:      append([]string{}, grant.Scopes...),
+		VerifiedAt:  now.UTC().Format(time.RFC3339),
+		TokenID:     grant.ID,
+		Last4:       grant.Last4,
+		AllApps:     true,
 	}
 	if !grant.ExpiresAt.IsZero() {
 		p.ExpiresAt = grant.ExpiresAt.UTC().Format(time.RFC3339)
@@ -424,6 +453,16 @@ func Login(ctx context.Context, out, stderr io.Writer, authBase, mgmtBase, usern
 	if err != nil {
 		return err
 	}
+	fetchedDisplay, fetchedUser, _, _, ferr := fetchCallerProfile(flowCtx, mgmtBase, accountsToken, stderr, debug)
+	grantDisplayName := fetchedDisplay
+	if ferr != nil {
+		rollbackMint(flowCtx, mgmtBase, token, stderr, debug)
+		return ferr
+	}
+	if username == "" {
+		username = fetchedUser
+	}
+	grantDisplayName = fetchedDisplay
 	if _, verr := verifyMachineToken(flowCtx, mgmtBase, token, stderr, debug); verr != nil {
 		rollbackMint(flowCtx, mgmtBase, token, stderr, debug)
 		return fmt.Errorf("fresh mint failed verification, rolled back: %w", verr)
@@ -432,7 +471,7 @@ func Login(ctx context.Context, out, stderr io.Writer, authBase, mgmtBase, usern
 		rollbackMint(flowCtx, mgmtBase, token, stderr, debug)
 		return err
 	}
-	if err := SaveProfile(profileFromGrant(grant, username, time.Now()), stderr); err != nil {
+	if err := SaveProfile(profileFromGrant(grant, username, grantDisplayName, time.Now()), stderr); err != nil {
 		rollbackMint(flowCtx, mgmtBase, token, stderr, debug)
 		return err
 	}

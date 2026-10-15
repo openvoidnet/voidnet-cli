@@ -31,6 +31,9 @@ actions:
   - target: $.paths['/api/publisher/v1/auth/revoke-self'].post
     update:
       tags: [publisher]
+  - target: $.paths['/api/publisher/v1/auth/me'].get
+    update:
+      tags: [publisher]
   # --- buyer live-routing ops: wire ApiKeyAuth (source spec ops carry no security) ---
   - target: $.paths['/v1-beta/mcp/{username}/{appname}'].post
     update:

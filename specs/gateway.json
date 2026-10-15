@@ -1,0 +1,1432 @@
+{
+  "components": {
+    "schemas": {
+      "auth.ASErrorResponse": {
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "error_description": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "auth.ASTokenResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string"
+          },
+          "expires_in": {
+            "type": "integer"
+          },
+          "refresh_token": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "token_type": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "auth.AuthorizationServerMetadata": {
+        "properties": {
+          "authorization_endpoint": {
+            "type": "string"
+          },
+          "code_challenge_methods_supported": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "grant_types_supported": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "jwks_uri": {
+            "type": "string"
+          },
+          "response_types_supported": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "scopes_supported": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "token_endpoint": {
+            "type": "string"
+          },
+          "token_endpoint_auth_methods_supported": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "auth.JWK": {
+        "properties": {
+          "alg": {
+            "type": "string"
+          },
+          "e": {
+            "type": "string"
+          },
+          "kid": {
+            "type": "string"
+          },
+          "kty": {
+            "type": "string"
+          },
+          "n": {
+            "type": "string"
+          },
+          "use": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "auth.JWKSet": {
+        "properties": {
+          "keys": {
+            "items": {
+              "$ref": "#/components/schemas/auth.JWK"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "auth.ProtectedResourceMetadata": {
+        "properties": {
+          "authorization_servers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "bearer_methods_supported": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "scopes_supported": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "main.ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/main.GatewayError"
+          }
+        },
+        "type": "object"
+      },
+      "main.GatewayError": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "main.HealthResponse": {
+        "properties": {
+          "env": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "time": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "main.JSONRPCRequest": {
+        "properties": {
+          "id": {
+            "example": "1",
+            "type": "string"
+          },
+          "jsonrpc": {
+            "example": "2.0",
+            "type": "string"
+          },
+          "method": {
+            "example": "tools/call",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "description": "API key authentication for gateway requests",
+        "in": "header",
+        "name": "Authorization",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "contact": {
+      "email": "support@openvoidnet.com",
+      "name": "Voidnet Support",
+      "url": "https://openvoidnet.com/support"
+    },
+    "description": "API Gateway for Voidnet ecosystem - routes MCP and LLM requests through authentication, rate limiting, billing, and protocol adapters. Stateless MCP 2026-07-28, LLM OpenAI-compatible text + multimodal.",
+    "license": {
+      "name": "Proprietary",
+      "url": "https://openvoidnet.com/terms"
+    },
+    "termsOfService": "https://openvoidnet.com/terms",
+    "title": "Voidnet API Gateway",
+    "version": "2.0.0-beta"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/.well-known/jwks.json": {
+      "get": {
+        "description": "Return the gateway's public signing keys as a JWKS. Clients use these to verify the signature of JWT access tokens issued by the gateway. Token selection is based on the `alg` header (RS256).",
+        "operationId": "getJwks",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/auth.JWKSet"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/auth.ASErrorResponse"
+                }
+              }
+            },
+            "description": "JWKS not available — signing not configured"
+          }
+        },
+        "summary": "JSON Web Key Set (JWKS)",
+        "tags": [
+          "mcp"
+        ]
+      }
+    },
+    "/.well-known/oauth-authorization-server": {
+      "get": {
+        "description": "Advertise the token endpoint, supported grant types, auth methods, scopes, and JWKS URI. OAuth-aware clients use this to discover how to obtain tokens.",
+        "operationId": "getAuthorizationServerMetadata",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/auth.AuthorizationServerMetadata"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "OAuth authorization-server metadata (RFC 8414)",
+        "tags": [
+          "mcp"
+        ]
+      }
+    },
+    "/.well-known/oauth-protected-resource": {
+      "get": {
+        "description": "Advertise the authorization server that protects this resource, the scopes it supports, and the bearer-token method used. OAuth-aware clients use this to self-configure.",
+        "operationId": "getProtectedResourceMetadata",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/auth.ProtectedResourceMetadata"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "OAuth protected-resource metadata (RFC 9728)",
+        "tags": [
+          "mcp"
+        ]
+      }
+    },
+    "/authorize": {
+      "get": {
+        "description": "Validate the authorization request parameters (client_id, redirect_uri, response_type=code, PKCE code_challenge S256) and render the gateway-hosted HTML login+consent form. Browser flow only — interactive clients open this URL for the user.",
+        "operationId": "getAuthorizePage",
+        "parameters": [
+          {
+            "description": "Buyer API key (vnb-sk-* / vai-sk-*)",
+            "in": "query",
+            "name": "client_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exact-match http/https callback URL",
+            "in": "query",
+            "name": "redirect_uri",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Must be 'code'",
+            "in": "query",
+            "name": "response_type",
+            "required": true,
+            "schema": {
+              "enum": [
+                "code"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Requested scope",
+            "in": "query",
+            "name": "scope",
+            "schema": {
+              "default": "mcp:tools",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Opaque client state, round-tripped to the callback",
+            "in": "query",
+            "name": "state",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "43-char base64url PKCE challenge (mandatory)",
+            "in": "query",
+            "name": "code_challenge",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Must be 'S256'",
+            "in": "query",
+            "name": "code_challenge_method",
+            "required": true,
+            "schema": {
+              "enum": [
+                "S256"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "HTML login+consent form"
+          },
+          "400": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "$ref": "#/components/schemas/auth.ASErrorResponse"
+                }
+              }
+            },
+            "description": "invalid_request / invalid_client / unsupported_response_type"
+          },
+          "405": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "$ref": "#/components/schemas/auth.ASErrorResponse"
+                }
+              }
+            },
+            "description": "unsupported_method — only GET is supported"
+          }
+        },
+        "summary": "OAuth login+consent page (Authorization Code + PKCE)",
+        "tags": [
+          "mcp"
+        ]
+      },
+      "post": {
+        "description": "Verify the user's email+password (bcrypt), then issue a single-use authorization code (5-minute TTL) and redirect (302) to redirect_uri with ?code=...\u0026state=.... Validation failures re-render the HTML login form with an error message instead of returning JSON.",
+        "operationId": "submitAuthorize",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "properties": {
+                  "client_id": {
+                    "description": "Buyer API key carried from the GET request",
+                    "type": "string",
+                    "x-formData-name": "client_id"
+                  },
+                  "code_challenge": {
+                    "description": "PKCE challenge carried from the GET request",
+                    "type": "string",
+                    "x-formData-name": "code_challenge"
+                  },
+                  "code_challenge_method": {
+                    "description": "Must be 'S256'",
+                    "type": "string",
+                    "x-formData-name": "code_challenge_method"
+                  },
+                  "email": {
+                    "description": "Console account email",
+                    "type": "string",
+                    "x-formData-name": "email"
+                  },
+                  "password": {
+                    "description": "Console account password",
+                    "type": "string",
+                    "x-formData-name": "password"
+                  },
+                  "redirect_uri": {
+                    "description": "Exact-match http/https callback URL",
+                    "type": "string",
+                    "x-formData-name": "redirect_uri"
+                  },
+                  "scope": {
+                    "description": "Requested scope",
+                    "type": "string",
+                    "x-formData-name": "scope"
+                  },
+                  "state": {
+                    "description": "Opaque client state, round-tripped to the callback",
+                    "type": "string",
+                    "x-formData-name": "state"
+                  }
+                },
+                "required": [
+                  "client_id",
+                  "code_challenge",
+                  "code_challenge_method",
+                  "email",
+                  "password",
+                  "redirect_uri"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "HTML login form re-rendered with an error message (bad credentials / missing fields)"
+          },
+          "302": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Redirect to redirect_uri with ?code=\u003csingle-use-code\u003e\u0026state=..."
+          },
+          "405": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "$ref": "#/components/schemas/auth.ASErrorResponse"
+                }
+              }
+            },
+            "description": "unsupported_method — only POST is supported"
+          },
+          "500": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "$ref": "#/components/schemas/auth.ASErrorResponse"
+                }
+              }
+            },
+            "description": "server_error — code generation or storage failed"
+          }
+        },
+        "summary": "Submit login+consent, issue authorization code",
+        "tags": [
+          "mcp"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Check the health status of the gateway and its dependencies (database, redis). Returns 200 only when all critical dependencies are reachable, 503 otherwise. The body carries status only — per-dependency detail stays in logs, never on the wire.",
+        "operationId": "checkHealth",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.HealthResponse"
+                }
+              }
+            },
+            "description": "All dependencies reachable"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "A critical dependency (db or redis) is down"
+          }
+        },
+        "summary": "Health check",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/health/live": {
+      "get": {
+        "description": "Process-up check with no dependency calls. For edge routing, monitors, and CLI probes. Always 200 while the process serves.",
+        "operationId": "checkLiveness",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.HealthResponse"
+                }
+              }
+            },
+            "description": "Process alive"
+          }
+        },
+        "summary": "Liveness probe",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/oauth/token": {
+      "post": {
+        "description": "Exchange credentials for a short-lived JWT access token using supported grant types: client_credentials, authorization_code, refresh_token. Built for OAuth-aware MCP clients (Claude Desktop, Cursor, VS Code); default scope is mcp:tools. The token is valid for a configurable TTL (default 1 hour) and can be used as a `Bearer` credential anywhere an API key is accepted. The `audience` is always the gateway issuer URL — no client-controlled audience is accepted.",
+        "operationId": "createToken",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "client_id": {
+                    "description": "Your API key (vnb-sk-* / vai-sk-* / vnp-sk-*)",
+                    "type": "string",
+                    "x-formData-name": "client_id"
+                  },
+                  "client_secret": {
+                    "description": "Must match client_id if provided (API key is its own secret)",
+                    "type": "string",
+                    "x-formData-name": "client_secret"
+                  },
+                  "code": {
+                    "description": "Authorization code (required for authorization_code grant)",
+                    "type": "string",
+                    "x-formData-name": "code"
+                  },
+                  "code_verifier": {
+                    "description": "PKCE code verifier (required for authorization_code grant)",
+                    "type": "string",
+                    "x-formData-name": "code_verifier"
+                  },
+                  "grant_type": {
+                    "description": "OAuth grant type",
+                    "enum": [
+                      "client_credentials",
+                      "authorization_code",
+                      "refresh_token"
+                    ],
+                    "type": "string",
+                    "x-formData-name": "grant_type"
+                  },
+                  "redirect_uri": {
+                    "description": "Redirect URI (required for authorization_code grant)",
+                    "type": "string",
+                    "x-formData-name": "redirect_uri"
+                  },
+                  "refresh_token": {
+                    "description": "Refresh token (required for refresh_token grant)",
+                    "type": "string",
+                    "x-formData-name": "refresh_token"
+                  },
+                  "scope": {
+                    "default": "mcp:tools",
+                    "description": "Requested scope (mcp:* for tools, llm:* for models)",
+                    "type": "string",
+                    "x-formData-name": "scope"
+                  }
+                },
+                "required": [
+                  "client_id",
+                  "grant_type"
+                ],
+                "type": "object"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "properties": {
+                  "client_id": {
+                    "description": "Your API key (vnb-sk-* / vai-sk-* / vnp-sk-*)",
+                    "type": "string",
+                    "x-formData-name": "client_id"
+                  },
+                  "client_secret": {
+                    "description": "Must match client_id if provided (API key is its own secret)",
+                    "type": "string",
+                    "x-formData-name": "client_secret"
+                  },
+                  "code": {
+                    "description": "Authorization code (required for authorization_code grant)",
+                    "type": "string",
+                    "x-formData-name": "code"
+                  },
+                  "code_verifier": {
+                    "description": "PKCE code verifier (required for authorization_code grant)",
+                    "type": "string",
+                    "x-formData-name": "code_verifier"
+                  },
+                  "grant_type": {
+                    "description": "OAuth grant type",
+                    "enum": [
+                      "client_credentials",
+                      "authorization_code",
+                      "refresh_token"
+                    ],
+                    "type": "string",
+                    "x-formData-name": "grant_type"
+                  },
+                  "redirect_uri": {
+                    "description": "Redirect URI (required for authorization_code grant)",
+                    "type": "string",
+                    "x-formData-name": "redirect_uri"
+                  },
+                  "refresh_token": {
+                    "description": "Refresh token (required for refresh_token grant)",
+                    "type": "string",
+                    "x-formData-name": "refresh_token"
+                  },
+                  "scope": {
+                    "default": "mcp:tools",
+                    "description": "Requested scope (mcp:* for tools, llm:* for models)",
+                    "type": "string",
+                    "x-formData-name": "scope"
+                  }
+                },
+                "required": [
+                  "client_id",
+                  "grant_type"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/auth.ASTokenResponse"
+                }
+              }
+            },
+            "description": "Access token issued"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/auth.ASErrorResponse"
+                }
+              }
+            },
+            "description": "invalid_request / unsupported_grant_type / invalid_client / invalid_grant"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/auth.ASErrorResponse"
+                }
+              }
+            },
+            "description": "invalid_client — credentials not found"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/auth.ASErrorResponse"
+                }
+              }
+            },
+            "description": "unsupported_method — only POST is supported"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/auth.ASErrorResponse"
+                }
+              }
+            },
+            "description": "server_error — token signing not configured or failed"
+          }
+        },
+        "summary": "Request an OAuth 2.0 access token (MCP clients)",
+        "tags": [
+          "mcp"
+        ]
+      }
+    },
+    "/v1-beta/llm/{username}/{appname}": {
+      "get": {
+        "description": "Proxy the publisher's OpenAI models listing: `GET {publisherServerURL}/*models*` for any request path containing `models`. The publisher's raw response passes through unchanged. No metering, no wallet charge. Request paths without `models` are rejected with `400 invalid_request` (\"Unsupported GET path for LLM\").",
+        "operationId": "listModels",
+        "parameters": [
+          {
+            "description": "Publisher username (the developer's public identifier)",
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "App name, unique per publisher",
+            "in": "path",
+            "name": "appname",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Bearer credential — API key (vnb-sk-* / vai-sk-*) or JWT access token (scope llm:completions)",
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Publisher's OpenAI models listing (passed through)"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad request — path has no `models` segment, app/publisher unknown, or LLM model validation failed"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized — missing, invalid, or expired API key / JWT"
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Payment required — insufficient wallet balance (paid tier)"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden — app not purchased, subscription inactive, or scope denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "App or publisher not found"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or meter exceeded"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad gateway — publisher error, or app offline (circuit open)"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timeout — publisher did not respond in time"
+          }
+        },
+        "summary": "List publisher models (LLM, non-billable)",
+        "tags": [
+          "llm"
+        ]
+      },
+      "post": {
+        "description": "Proxy an OpenAI-compatible chat request to the target LLM app's publisher server. Body: `{\"model\":\"\u003cpublished-model-id\u003e\",\"messages\":[{\"role\":\"user\",\"content\":\"...\"}]}` — `model` must match the app's published model exactly. Text plus multimodal content parts (`image_url`, `input_audio`, `video_url`, `file`) pass through verbatim to the publisher. `stream:false` and `stream:true` (SSE) both supported; the gateway injects `stream_options.include_usage:true` when missing. Streams without a final usage chunk fail loudly instead of going unbilled. One model per app, token-metered (`usage.total_tokens`), wallet-billed per call.",
+        "operationId": "createChatCompletion",
+        "parameters": [
+          {
+            "description": "Publisher username (the developer's public identifier)",
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "App name, unique per publisher",
+            "in": "path",
+            "name": "appname",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Bearer credential — API key (vnb-sk-* / vai-sk-*) or JWT access token (scope llm:completions)",
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "description": "OpenAI chat body {model, messages} — proxied verbatim",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Publisher's chat completion (passed through)"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad request — LLM model/messages missing or malformed JSON"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized — missing, invalid, or expired API key / JWT"
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Payment required — insufficient wallet balance (paid tier)"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden — app not purchased, subscription inactive, or scope denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "App or publisher not found"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Method not allowed — PUT/DELETE unsupported"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or meter exceeded"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad gateway — publisher error, or app offline (circuit open)"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timeout — publisher did not respond in time"
+          }
+        },
+        "summary": "Chat with an AI model (OpenAI compatible, text + multimodal)",
+        "tags": [
+          "llm"
+        ]
+      }
+    },
+    "/v1-beta/mcp/{username}/{appname}": {
+      "get": {
+        "description": "Proxy a JSON-RPC 2.0 request to the target MCP app's publisher server. The gateway runs every request through authentication, rate limiting, billing, routing, circuit breaking, and protocol adaptation. The response body is the publisher's raw JSON-RPC response, passed through unchanged.",
+        "operationId": "queryMcp",
+        "parameters": [
+          {
+            "description": "Publisher username (the developer's public identifier)",
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "App name, unique per publisher",
+            "in": "path",
+            "name": "appname",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Bearer credential — API key (vnb-sk-* / vai-sk-*) or JWT access token (scope mcp:tools)",
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Must be 2026-07-28",
+            "in": "header",
+            "name": "MCP-Protocol-Version",
+            "required": true,
+            "schema": {
+              "default": "2026-07-28",
+              "type": "string"
+            }
+          },
+          {
+            "description": "JSON-RPC method name (e.g., tools/call)",
+            "in": "header",
+            "name": "Mcp-Method",
+            "required": true,
+            "schema": {
+              "default": "tools/call",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Tool/resource/prompt name for routing",
+            "in": "header",
+            "name": "Mcp-Name",
+            "required": true,
+            "schema": {
+              "default": "tools/call",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/main.JSONRPCRequest"
+              }
+            }
+          },
+          "description": "JSON-RPC 2.0 request to proxy to the publisher",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Publisher's JSON-RPC 2.0 response (passed through)"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad request — invalid path, malformed JSON-RPC, unsupported protocol version, or header/_meta mismatch"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized — missing, invalid, or expired API key / JWT"
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Payment required — insufficient wallet balance (paid tier)"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden — app not purchased, subscription inactive, or scope denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "App or publisher not found"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Method not allowed — PUT/DELETE unsupported"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or meter exceeded"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad gateway — publisher error, or app offline (circuit open)"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timeout — publisher did not respond in time"
+          }
+        },
+        "summary": "Call an MCP tool (stateless 2026-07-28)",
+        "tags": [
+          "mcp"
+        ]
+      },
+      "post": {
+        "description": "Proxy a JSON-RPC 2.0 request to the target MCP app's publisher server. The gateway runs every request through authentication, rate limiting, billing, routing, circuit breaking, and protocol adaptation. The response body is the publisher's raw JSON-RPC response, passed through unchanged.",
+        "operationId": "callTool",
+        "parameters": [
+          {
+            "description": "Publisher username (the developer's public identifier)",
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "App name, unique per publisher",
+            "in": "path",
+            "name": "appname",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Bearer credential — API key (vnb-sk-* / vai-sk-*) or JWT access token (scope mcp:tools)",
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Must be 2026-07-28",
+            "in": "header",
+            "name": "MCP-Protocol-Version",
+            "required": true,
+            "schema": {
+              "default": "2026-07-28",
+              "type": "string"
+            }
+          },
+          {
+            "description": "JSON-RPC method name (e.g., tools/call)",
+            "in": "header",
+            "name": "Mcp-Method",
+            "required": true,
+            "schema": {
+              "default": "tools/call",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Tool/resource/prompt name for routing",
+            "in": "header",
+            "name": "Mcp-Name",
+            "required": true,
+            "schema": {
+              "default": "tools/call",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/main.JSONRPCRequest"
+              }
+            }
+          },
+          "description": "JSON-RPC 2.0 request to proxy to the publisher",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Publisher's JSON-RPC 2.0 response (passed through)"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad request — invalid path, malformed JSON-RPC, unsupported protocol version, or header/_meta mismatch"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized — missing, invalid, or expired API key / JWT"
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Payment required — insufficient wallet balance (paid tier)"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden — app not purchased, subscription inactive, or scope denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "App or publisher not found"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Method not allowed — PUT/DELETE unsupported"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or meter exceeded"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad gateway — publisher error, or app offline (circuit open)"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/main.ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timeout — publisher did not respond in time"
+          }
+        },
+        "summary": "Call an MCP tool (stateless 2026-07-28)",
+        "tags": [
+          "mcp"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "Production gateway",
+      "url": "https://api.openvoidnet.com"
+    },
+    {
+      "description": "Local gateway",
+      "url": "http://localhost:8090"
+    }
+  ],
+  "tags": [
+    {
+      "description": "MCP tools over JSON-RPC",
+      "name": "mcp"
+    },
+    {
+      "description": "Chat + models (OpenAI-compatible)",
+      "name": "llm"
+    },
+    {
+      "description": "Service health",
+      "name": "health"
+    }
+  ]
+}

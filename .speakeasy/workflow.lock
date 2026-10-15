@@ -9,9 +9,9 @@ workflow:
     sources:
         voidnet-combined:
             inputs:
-                - location: ../../../apps/gateway/openapi/openapi.json
+                - location: specs/gateway.json
                   modelNamespace: gateway
-                - location: ../../../apps/net/openapi/openapi.json
+                - location: specs/publisher.json
                   modelNamespace: publisher
             overlays:
                 - location: overlays/cli-grouping.yaml

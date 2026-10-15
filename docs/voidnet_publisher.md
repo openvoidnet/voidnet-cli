@@ -44,6 +44,7 @@ voidnet publisher [flags]
 * [voidnet publisher list-apps](voidnet_publisher_list-apps.md)	 - List publisher apps
 * [voidnet publisher list-keys](voidnet_publisher_list-keys.md)	 - List key fingerprints
 * [voidnet publisher publish-app](voidnet_publisher_publish-app.md)	 - Publish app
+* [voidnet publisher read-caller-profile](voidnet_publisher_read-caller-profile.md)	 - Caller identity and publisher state
 * [voidnet publisher read-metering](voidnet_publisher_read-metering.md)	 - Read metering rows
 * [voidnet publisher refresh-snapshot](voidnet_publisher_refresh-snapshot.md)	 - Refresh capability snapshot
 * [voidnet publisher revoke-self](voidnet_publisher_revoke-self.md)	 - Revoke calling token

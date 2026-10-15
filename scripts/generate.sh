@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-EXP="$ROOT/packages/exp/cli"
+EXP="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export GOTOOLCHAIN=auto
 echo "[exp-cli] auth gate: checking speakeasy authentication"
 if [ -z "${SPEAKEASY_API_KEY:-}" ] && ! timeout 30 speakeasy status --output console >/dev/null 2>&1; then

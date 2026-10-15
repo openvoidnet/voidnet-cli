@@ -6,16 +6,13 @@
 package weblogin
 
 import (
-	"bufio"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/openvoidnet/voidnet-cli/internal/client"
-	"golang.org/x/term"
 )
 
 // dryRunNoop honors the framework contract: no network, no keychain, no
@@ -33,24 +30,6 @@ func dryRunNoop(cmd *cobra.Command, action, detail string) error {
 // isMachineToken enforces the vnp-pub-* shape before anything is stored.
 func isMachineToken(tok string) bool {
 	return strings.HasPrefix(tok, "vnp-pub-") && len(tok) > len("vnp-pub-")
-}
-
-// resolveUsername returns the flag value, or prompts once on interactive
-// terminals. Empty stays empty: the server 404s honestly on a wrong name,
-// and `voidnet profile` shows what is stored.
-func resolveUsername(cmd *cobra.Command) (string, error) {
-	if u, _ := cmd.Flags().GetString("username"); u != "" {
-		return strings.TrimSpace(u), nil
-	}
-	if !term.IsTerminal(int(os.Stdin.Fd())) {
-		return "", nil
-	}
-	fmt.Fprint(cmd.ErrOrStderr(), "Publisher username (for buyer URLs, Enter to skip): ")
-	line, err := bufio.NewReader(os.Stdin).ReadString('\n')
-	if err != nil {
-		return "", nil
-	}
-	return strings.TrimSpace(line), nil
 }
 
 // InitWebloginRoot registers top-level login/logout, mirroring the hand CLI
@@ -79,10 +58,8 @@ Flags override environment, environment overrides production defaults:
 			if client.IsDryRun(cmd) {
 				return dryRunNoop(cmd, "login", "open browser for Void Accounts sign-in, approve consent, redeem code, mint + verify + store machine token")
 			}
-			username, err := resolveUsername(cmd)
-			if err != nil {
-				return err
-			}
+			username, _ := cmd.Flags().GetString("username")
+			username = strings.TrimSpace(username)
 			if tok, _ := cmd.Flags().GetString("token"); tok != "" {
 				if !isMachineToken(tok) {
 					return fmt.Errorf("--token must start with vnp-pub-, nothing stored")
@@ -96,7 +73,7 @@ Flags override environment, environment overrides production defaults:
 	loginCmd.Flags().String("token", "", "Store a console-issued vnp-pub-* token directly (verified before storing; headless/CI)")
 	loginCmd.Flags().String("mgmt-base", "", "Publisher API origin (overrides VOIDNET_MGMT_BASE)")
 	loginCmd.Flags().String("env", "", "Environment shortcut: production|development (sets both origins; explicit base flags win)")
-	loginCmd.Flags().String("username", "", "Publisher username to store (skips the prompt)")
+	loginCmd.Flags().String("username", "", "Publisher username override (fetched automatically otherwise)")
 
 	logoutCmd := &cobra.Command{
 		Use:   "logout",
@@ -133,11 +110,17 @@ Flags override environment, environment overrides production defaults:
 				return fmt.Errorf("no stored profile — run voidnet login")
 			}
 			out := cmd.OutOrStdout()
+			name := prof.DisplayName
+			if name == "" {
+				name = "(unknown)"
+			}
+			fmt.Fprintf(out, "Name: %s\n", name)
 			user := prof.Username
 			if user == "" {
-				user = "(not set — pass --username at login)"
+				fmt.Fprintln(out, "Publisher username: not a publisher")
+			} else {
+				fmt.Fprintf(out, "Publisher username: %s\n", user)
 			}
-			fmt.Fprintf(out, "Username: %s\n", user)
 			if len(prof.Scopes) > 0 {
 				fmt.Fprintf(out, "Scopes: %s\n", strings.Join(prof.Scopes, ", "))
 			} else {

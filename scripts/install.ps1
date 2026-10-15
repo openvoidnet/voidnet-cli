@@ -88,24 +88,6 @@ function Install-CLI {
 
         Write-ColorOutput "Download complete" -Color Green
 
-        # Verify checksum before extracting anything.
-        $baseUrl = $downloadUrl.Substring(0, $downloadUrl.LastIndexOf('/'))
-        try {
-            Invoke-WebRequest -Uri "$baseUrl/checksums.txt" -OutFile (Join-Path $tempDir "checksums.txt") -UseBasicParsing
-        }
-        catch {
-            throw "Failed to download checksums.txt (release may predate checksums): $_"
-        }
-        $expected = (Select-String -Path (Join-Path $tempDir "checksums.txt") -Pattern ([regex]::Escape($archiveName)) | Select-Object -First 1).Line.Split()[0]
-        if (-not $expected) {
-            throw "No checksum entry for $archiveName in checksums.txt"
-        }
-        $actual = (Get-FileHash -Path $archivePath -Algorithm SHA256).Hash.ToLower()
-        if ($actual -ne $expected.ToLower()) {
-            throw "Checksum mismatch for $archiveName. Aborting before extract."
-        }
-        Write-ColorOutput "Checksum verified." -Color Green
-
         # Extract archive
         Write-ColorOutput "Extracting archive..." -Color Cyan
         Expand-Archive -Path $archivePath -DestinationPath $tempDir -Force

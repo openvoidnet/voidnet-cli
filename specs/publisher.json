@@ -1,0 +1,1085 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Voidnet Publisher API",
+    "version": "1.0.0",
+    "description": "Machine twin of every console publisher action. Bearer publisher token auth (vnp-pub-*)."
+  },
+  "servers": [
+    {
+      "url": "https://openvoidnet.com",
+      "description": "Production publisher API (Next.js net app serves /api/* on this origin)"
+    },
+    {
+      "url": "http://localhost:3000",
+      "description": "Local publisher API (net pnpm dev)"
+    }
+  ],
+  "security": [
+    {
+      "publisherToken": []
+    }
+  ],
+  "paths": {
+    "/api/publisher/v1/apps": {
+      "get": {
+        "operationId": "listApps",
+        "summary": "List publisher apps",
+        "description": "Machine twin of console app list. Same rows the cookie face returns.",
+        "responses": {
+          "200": {
+            "description": "Publisher apps with status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "apps": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/App"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired publisher token"
+          },
+          "403": {
+            "description": "Scope or binding denied"
+          },
+          "503": {
+            "description": "Token lookup or app query failed"
+          }
+        },
+        "security": [
+          {
+            "publisherToken": [
+              "apps:read"
+            ]
+          }
+        ]
+      }
+    },
+    "/api/publisher/v1/apps/{id}/keys": {
+      "get": {
+        "operationId": "listKeys",
+        "summary": "List key fingerprints",
+        "description": "Fingerprint list entry per key. Full values never listed.",
+        "responses": {
+          "200": {
+            "description": "Key fingerprints",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "keys": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/KeyFingerprint"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired publisher token"
+          },
+          "403": {
+            "description": "Scope or binding denied"
+          },
+          "404": {
+            "description": "App not found"
+          }
+        },
+        "security": [
+          {
+            "publisherToken": [
+              "keys:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Publisher app UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "rotateKey",
+        "summary": "Rotate app key",
+        "description": "Revokes all keys for the app, then creates one key. Full value shown once at birth.",
+        "responses": {
+          "201": {
+            "description": "Once-only full value plus fingerprint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RotateResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired publisher token"
+          },
+          "403": {
+            "description": "Scope or binding denied"
+          },
+          "404": {
+            "description": "App not found"
+          }
+        },
+        "security": [
+          {
+            "publisherToken": [
+              "keys:rotate"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Publisher app UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/publisher/v1/apps/{id}/metering": {
+      "get": {
+        "operationId": "readMetering",
+        "summary": "Read metering rows",
+        "description": "Usage rows carry requestId join IDs for call-by-call reconcile.",
+        "responses": {
+          "200": {
+            "description": "Metering rows with join IDs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeteringResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid from/to date"
+          },
+          "401": {
+            "description": "Missing, invalid, or expired publisher token"
+          },
+          "403": {
+            "description": "Scope or binding denied"
+          },
+          "404": {
+            "description": "App not found"
+          },
+          "503": {
+            "description": "Failed to fetch metering records"
+          }
+        },
+        "security": [
+          {
+            "publisherToken": [
+              "metering:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Publisher app UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "query",
+            "description": "Join ID filter",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Clamped 1-200, default 50",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Default 0",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "RFC3339 instant lower bound (e.g. 2026-10-01T00:00:00Z)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "RFC3339 instant upper bound (e.g. 2026-10-31T23:59:59Z)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ]
+      }
+    },
+    "/api/publisher/v1/apps/{id}/verify": {
+      "post": {
+        "operationId": "verifyServer",
+        "summary": "Verify publisher server",
+        "description": "Machine twin of console verify. Runs the shared core: identical logic, evidence, snapshot. MCP and LLM share this endpoint; the adapter branches on the app.",
+        "responses": {
+          "200": {
+            "description": "Capabilities snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No active key, malformed server_url, or verification evidence failure"
+          },
+          "401": {
+            "description": "Missing, invalid, or expired publisher token"
+          },
+          "403": {
+            "description": "Scope or binding denied"
+          },
+          "404": {
+            "description": "App not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          },
+          "502": {
+            "description": "Publisher unreachable"
+          },
+          "503": {
+            "description": "Failed to retrieve publisher key"
+          }
+        },
+        "security": [
+          {
+            "publisherToken": [
+              "apps:verify"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Publisher app UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/publisher/v1/apps/{id}/publish": {
+      "post": {
+        "operationId": "publishApp",
+        "summary": "Publish app",
+        "description": "Machine twin of console publish. Runs the shared gate: identical checks, Stripe timing, status flip. Only this endpoint and its console twin may publish.",
+        "responses": {
+          "200": {
+            "description": "Published app",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired publisher token"
+          },
+          "403": {
+            "description": "Scope or binding denied"
+          },
+          "404": {
+            "description": "App not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "publisherToken": [
+              "apps:publish"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Publisher app UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/publisher/v1/apps/{id}/refresh": {
+      "post": {
+        "operationId": "refreshSnapshot",
+        "summary": "Refresh capability snapshot",
+        "description": "Same core fetch, same snapshot write, no description touch. MCP apps only.",
+        "responses": {
+          "200": {
+            "description": "Refreshed snapshot with timestamp",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refresh supports MCP apps only, or no active key"
+          },
+          "401": {
+            "description": "Missing, invalid, or expired publisher token"
+          },
+          "403": {
+            "description": "Scope or binding denied"
+          },
+          "404": {
+            "description": "App not found"
+          },
+          "502": {
+            "description": "Live fetch failed"
+          }
+        },
+        "security": [
+          {
+            "publisherToken": [
+              "apps:verify"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Publisher app UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/publisher/v1/auth/exchange": {
+      "post": {
+        "operationId": "exchangeTokens",
+        "summary": "Exchange accounts token for machine token",
+        "description": "Accepts a user-bound Void Accounts access token, resolves the publisher, mints a scoped vnp-pub-* machine token (30 days). Grants read + verify scopes only; publish and keys:rotate stay console-issued.",
+        "responses": {
+          "201": {
+            "description": "Machine token minted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExchangeResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing accounts_token or no grantable scope"
+          },
+          "401": {
+            "description": "Invalid accounts token"
+          },
+          "403": {
+            "description": "No active publisher"
+          },
+          "503": {
+            "description": "Token lookup failed"
+          }
+        },
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExchangeRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/publisher/v1/auth/revoke-self": {
+      "post": {
+        "operationId": "revokeSelf",
+        "summary": "Revoke calling token",
+        "description": "The calling token revokes itself. CLI logout calls this so server-side state dies with local config. Bearer required, no scope required.",
+        "responses": {
+          "200": {
+            "description": "Revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired publisher token"
+          }
+        },
+        "security": [
+          {
+            "publisherToken": []
+          }
+        ]
+      }
+    },
+    "/api/publisher/v1/auth/me": {
+      "get": {
+        "operationId": "readCallerProfile",
+        "summary": "Caller identity and publisher state",
+        "description": "Accepts a user-bound Void Accounts access token as bearer (NOT a publisher token). Runs before any machine token exists, so this route takes no scope. CLI login stores the result as the profile instead of prompting.",
+        "responses": {
+          "200": {
+            "description": "Caller profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallerProfile"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing accounts token"
+          },
+          "401": {
+            "description": "Invalid accounts token"
+          },
+          "503": {
+            "description": "Token lookup failed"
+          }
+        },
+        "security": [
+          {
+            "publisherToken": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "publisherToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "vnp-pub"
+      }
+    },
+    "schemas": {
+      "App": {
+        "type": "object",
+        "required": [
+          "id",
+          "app_name",
+          "adapter_type",
+          "server_url",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "app_name": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "adapter_type": {
+            "type": "string",
+            "enum": [
+              "mcp",
+              "llm"
+            ]
+          },
+          "server_url": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published"
+            ]
+          }
+        }
+      },
+      "KeyFingerprint": {
+        "description": "Fingerprint list entry. Full values never listed.",
+        "type": "object",
+        "required": [
+          "id",
+          "last4",
+          "created_at",
+          "is_active"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "last4": {
+            "type": "string",
+            "minLength": 4,
+            "maxLength": 4
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revoked_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "is_active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MeteringRecord": {
+        "description": "One counted call. requestId is the join key across buyer, gateway, publisher.",
+        "type": "object",
+        "required": [
+          "requestId",
+          "timestamp",
+          "operationType",
+          "error"
+        ],
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "appId": {
+            "type": "string"
+          },
+          "appName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tier": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requests": {
+            "type": "integer"
+          },
+          "tokens": {
+            "type": "integer"
+          },
+          "modelName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operationType": {
+            "type": "string"
+          },
+          "toolName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resourceUri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "durationMs": {
+            "type": "integer"
+          },
+          "error": {
+            "type": "boolean"
+          },
+          "buyerId": {
+            "type": "string"
+          },
+          "adapterType": {
+            "type": "string",
+            "enum": [
+              "mcp",
+              "llm"
+            ]
+          }
+        }
+      },
+      "MachineToken": {
+        "description": "First-party machine token. Full value shown once at birth. app_ids NULL means all apps.",
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "last4",
+          "scopes",
+          "expires_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "last4": {
+            "type": "string",
+            "minLength": 4,
+            "maxLength": 4
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "app_ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revoked_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_used_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_used_ip": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "string"
+          }
+        }
+      },
+      "StructuredError": {
+        "type": "object",
+        "required": [
+          "type",
+          "code",
+          "request_id"
+        ],
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "param": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "doc_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "server_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "supported_received": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "supported_required": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ErrorBody": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "ScopeError": {
+        "type": "object",
+        "required": [
+          "type",
+          "code",
+          "param"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "example": "auth"
+          },
+          "code": {
+            "type": "string",
+            "example": "insufficient_scope"
+          },
+          "param": {
+            "type": "string",
+            "example": "scopes"
+          },
+          "needed": {
+            "type": "string"
+          },
+          "appId": {
+            "type": "string"
+          }
+        }
+      },
+      "VerifyResult": {
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "prompts": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "description": "success plus the capability snapshot the console confirm screen shows. MCP returns tools/resources/prompts; LLM returns models."
+      },
+      "PublishResult": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "app": {
+            "$ref": "#/components/schemas/App"
+          },
+          "stripe_connected": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RefreshResult": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "tools": {
+            "type": "integer",
+            "description": "Live tool count after refresh"
+          },
+          "fetched_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "RotateResult": {
+        "type": "object",
+        "required": [
+          "api_key",
+          "last4"
+        ],
+        "properties": {
+          "api_key": {
+            "type": "string",
+            "description": "Once-only full value. Never listed again."
+          },
+          "last4": {
+            "type": "string",
+            "minLength": 4,
+            "maxLength": 4
+          },
+          "scope": {
+            "type": "string"
+          },
+          "key": {
+            "$ref": "#/components/schemas/KeyFingerprint"
+          }
+        }
+      },
+      "MeteringResult": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MeteringRecord"
+            }
+          },
+          "pagination": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": "integer"
+              },
+              "offset": {
+                "type": "integer"
+              },
+              "total": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "ExchangeRequest": {
+        "type": "object",
+        "required": [
+          "accounts_token"
+        ],
+        "properties": {
+          "accounts_token": {
+            "type": "string",
+            "description": "User-bound Void Accounts access token"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Subset of the grantable scopes. Defaults to all grantable."
+          },
+          "app_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Requested app binding. Intersected with consent; omitted means consent binding."
+          }
+        }
+      },
+      "ExchangeResult": {
+        "type": "object",
+        "required": [
+          "token",
+          "last4",
+          "id",
+          "scopes",
+          "expires_at"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Once-only full vnp-pub-* value"
+          },
+          "last4": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "app_ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CallerProfile": {
+        "description": "Identity + publisher state for the calling accounts token. CLI login stores this as the profile.",
+        "type": "object",
+        "required": [
+          "user_id",
+          "display_name",
+          "publisher"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Publisher handle, null when not a publisher"
+          },
+          "publisher": {
+            "type": "boolean"
+          },
+          "suspended": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

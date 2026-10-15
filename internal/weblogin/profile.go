@@ -17,14 +17,15 @@ import (
 
 // Profile is the persisted post-login picture.
 type Profile struct {
-	Username   string   `json:"username,omitempty"`
-	Scopes     []string `json:"scopes,omitempty"`
-	AppIDs     []string `json:"app_ids,omitempty"`
-	AllApps    bool     `json:"all_apps"`
-	ExpiresAt  string   `json:"expires_at,omitempty"`
-	VerifiedAt string   `json:"verified_at,omitempty"`
-	TokenID    string   `json:"token_id,omitempty"`
-	Last4      string   `json:"last4,omitempty"`
+	DisplayName string   `json:"display_name,omitempty"`
+	Username    string   `json:"username,omitempty"`
+	Scopes      []string `json:"scopes,omitempty"`
+	AppIDs      []string `json:"app_ids,omitempty"`
+	AllApps     bool     `json:"all_apps"`
+	ExpiresAt   string   `json:"expires_at,omitempty"`
+	VerifiedAt  string   `json:"verified_at,omitempty"`
+	TokenID     string   `json:"token_id,omitempty"`
+	Last4       string   `json:"last4,omitempty"`
 }
 
 func profilePath() (string, error) {

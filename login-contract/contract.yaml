@@ -1,7 +1,7 @@
-contract: voidnet-cli-exp browser login
+contract: voidnet browser login
 version: 1.0.0
 parties:
-  cli: voidnet-cli-exp (generated Cobra CLI + hand weblogin command)
+  cli: voidnet (generated Cobra CLI + hand weblogin command)
   accounts: Void Accounts (OAuth IdP, authorization_code + PKCE)
   net: openvoidnet publisher API (machine-token mint)
 oauth_client:
@@ -22,6 +22,11 @@ cli_flow:
     endpoint: POST {accountsBase}/api/auth/oauth/token (JSON)
     body: "grant_type=authorization_code, client_id=voidnet-cli, code={code}, redirect_uri={loopback}/callback, code_verifier={verifier}"
     result: "access_token, token_type=Bearer, expires_in=3600, scope"
+  profile_request:
+    endpoint: GET {mgmtBase}/api/publisher/v1/auth/me (JSON, public)
+    auth: Authorization Bearer {accountsToken} (accounts token, NOT publisher token)
+    result: {user_id, display_name, username|null, publisher bool, suspended bool}
+    purpose: single identity round trip stored as the login profile; no username prompting
   exchange_request:
     endpoint: POST {mgmtBase}/api/publisher/v1/auth/exchange (JSON, public)
     body: "accounts_token={accountsToken}, scopes?=subset of grantable, app_ids?=subset of consent binding"
@@ -36,6 +41,8 @@ server_chain:
   consent_approve: "200 with redirect '{redirect_uri}?code={code}&state={state}' and scope_words [...]"
   code_policy: single-use, 10-minute expiry, bound to client_id + redirect_uri + challenge
   token_policy: PKCE challenge recomputed and compared; used/expired/mismatched code yields invalid_grant
+  me_policy:
+    rejects service (non-user-bound) accounts tokens; missing bearer 400, unknown token 401
   exchange_policy:
     grants: read + verify only (LOGIN_GRANTABLE from @void/publisher-core)
     binding: token app_ids = intersection(consent selection, request selection); null means all

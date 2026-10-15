@@ -38,6 +38,10 @@ func InitPublisherRoot(parent *cobra.Command) error {
 		return err
 	}
 
+	if err := initReadCallerProfileCmd(PublisherCmd); err != nil {
+		return err
+	}
+
 	if err := initReadMeteringCmd(PublisherCmd); err != nil {
 		return err
 	}

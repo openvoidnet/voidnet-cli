@@ -5,8 +5,7 @@
 #   VOIDNET_MATRIX_TOKEN=vnp-pub-... ./scripts/check-cli-matrix.sh
 # Without it, positive cases report SKIP (loud, not silent).
 set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-EXP="$ROOT/packages/exp/cli"
+EXP="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN="$EXP/voidnet"
 SRV=(--server 1)
 PASS=0
