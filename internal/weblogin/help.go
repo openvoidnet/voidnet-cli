@@ -25,6 +25,16 @@ var mainCommands = map[string]bool{
 	"help":      true,
 }
 
+// ShowFullFlags reports whether help renders flag sections: explicit -v
+// or --debug. Default help stays scannable at every level.
+func ShowFullFlags(c *cobra.Command) bool {
+	if v, err := c.Flags().GetBool("verbose"); err == nil && v {
+		return true
+	}
+	d, _ := c.Flags().GetBool("debug")
+	return d
+}
+
 // HideSecondaryCommands marks non-main top-level commands Hidden. Hidden
 // commands stay fully runnable and appear under `help -a`.
 func HideSecondaryCommands(root *cobra.Command) {
@@ -95,6 +105,8 @@ func frontHelp(out io.Writer, root *cobra.Command) error {
 		fmt.Fprintln(out, "")
 	}
 	fmt.Fprintln(out, "'help -a' lists every command. 'help <command>' shows details.")
+	fmt.Fprintln(out, "Append -v to any help to show all flags.")
+	fmt.Fprintln(out, "Append -v to any help to show all flags.")
 	return nil
 }
 

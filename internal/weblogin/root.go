@@ -153,6 +153,7 @@ Flags override environment, environment overrides production defaults:
 	// end of root init (see wire-weblogin.patch).
 	HideSecondaryCommands(parent)
 	parent.SetHelpCommand(HelpCommand(parent))
+	cobra.AddTemplateFunc("showFullFlags", ShowFullFlags)
 	return nil
 }
 

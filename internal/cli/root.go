@@ -31,6 +31,8 @@ var rootCmd *cobra.Command
 func NewRootCommand() (*cobra.Command, error) {
 	cobra.AddTemplateFunc("groupedFlagUsages", groupedFlagUsages)
 	cobra.AddTemplateFunc("groupedGlobalFlagUsages", groupedGlobalFlagUsages)
+	cobra.AddTemplateFunc("ungroupedOnlyFlagUsages", ungroupedOnlyFlagUsages)
+	cobra.AddTemplateFunc("showFullFlags", weblogin.ShowFullFlags)
 	rootCmd := &cobra.Command{
 		Use:           "voidnet",
 		Short:         "voidnet: Sign in once, manage publisher apps, call buyer APIs",
@@ -121,6 +123,7 @@ func NewRootCommand() (*cobra.Command, error) {
 	rootCmd.PersistentFlags().Bool("usage", false, "Print the CLI Usage schema in KDL format")
 	rootCmd.PersistentFlags().Bool("dry-run", false, "Preview API requests without sending them (no network, no OS keychain). Human preview on stderr; with -o json or --jq, one JSON object per request on stdout. Local mutation commands (auth login, auth logout and configure) make no request: they skip prompts and writes and report a no-op (stderr, or one JSON object on stdout in the machine form)")
 	rootCmd.PersistentFlags().BoolP("debug", "d", false, "Log request and response diagnostics to stderr")
+	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Show full help: all flags and sections (help is minimal by default)")
 
 	// Agent mode — optimized output for AI coding agent consumption.
 	// Automatically enabled when running inside a known AI agent (Claude Code, Cursor, etc.).
@@ -343,6 +346,33 @@ func groupedFlagUsages(flags *pflag.FlagSet) string {
 	return "Flags:\n" + strings.TrimRight(flags.FlagUsages(), "\n")
 }
 
+// ungroupedOnlyFlagUsages renders flags without group/required annotations
+// across flag sets (always essential: -h, --help, -v), deduplicated by name.
+// Grouped sections render only under -v.
+func ungroupedOnlyFlagUsages(sets ...*pflag.FlagSet) string {
+	ungrouped := pflag.NewFlagSet("ungrouped", pflag.ContinueOnError)
+	seen := map[string]bool{}
+	for _, flags := range sets {
+		flags.VisitAll(func(f *pflag.Flag) {
+			if f.Hidden || seen[f.Name] {
+				return
+			}
+			if ann, ok := f.Annotations["speakeasy:group"]; ok && len(ann) > 0 {
+				return
+			}
+			if ann, ok := f.Annotations["speakeasy:required"]; ok && len(ann) > 0 && ann[0] == "true" {
+				return
+			}
+			seen[f.Name] = true
+			ungrouped.AddFlag(f)
+		})
+	}
+	if !ungrouped.HasFlags() {
+		return ""
+	}
+	return "Flags:\n" + strings.TrimRight(ungrouped.FlagUsages(), "\n")
+}
+
 // groupedGlobalFlagUsages splits inherited (global) flags into category sections
 // based on the "speakeasy:group" annotation. Falls back to flat "Global Flags:".
 func groupedGlobalFlagUsages(flags *pflag.FlagSet) string {
@@ -508,12 +538,12 @@ func groupedUsageTemplate() string {
 
 	// Replace local flags section
 	oldLocal := "Flags:\n" + ob + ".LocalFlags.FlagUsages | trimTrailingWhitespaces" + cb
-	replLocal := ob + "if .HasParent" + cb + ob + "groupedFlagUsages .LocalFlags | trimTrailingWhitespaces" + cb + ob + "end" + cb
+	replLocal := ob + "if .HasSubCommands" + cb + ob + "if showFullFlags ." + cb + ob + "groupedFlagUsages .LocalFlags | trimTrailingWhitespaces" + cb + ob + "else" + cb + ob + "ungroupedOnlyFlagUsages .LocalFlags .InheritedFlags | trimTrailingWhitespaces" + cb + ob + "end" + cb + ob + "else" + cb + ob + "groupedFlagUsages .LocalFlags | trimTrailingWhitespaces" + cb + ob + "end" + cb
 	result := strings.Replace(defaultTmpl, oldLocal, replLocal, 1)
 
 	// Replace global flags section
 	oldGlobal := "Global Flags:\n" + ob + ".InheritedFlags.FlagUsages | trimTrailingWhitespaces" + cb
-	replGlobal := ob + "groupedGlobalFlagUsages .InheritedFlags | trimTrailingWhitespaces" + cb
+	replGlobal := ob + "if showFullFlags ." + cb + ob + "groupedGlobalFlagUsages .InheritedFlags | trimTrailingWhitespaces" + cb + ob + "end" + cb
 	result = strings.Replace(result, oldGlobal, replGlobal, 1)
 
 	oldFooter := "for more information about a command." + ob + "end" + cb

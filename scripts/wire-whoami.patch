@@ -1,0 +1,53 @@
+--- a/internal/cli/whoami.go
++++ b/internal/cli/whoami.go
+@@ -4,9 +4,12 @@
+ 
+ import (
+ 	"fmt"
++	"time"
++
+ 	"github.com/openvoidnet/voidnet-cli/internal/config"
+ 	"github.com/openvoidnet/voidnet-cli/internal/output"
+ 	"github.com/openvoidnet/voidnet-cli/internal/usage"
++	"github.com/openvoidnet/voidnet-cli/internal/weblogin"
+ 	"github.com/spf13/cobra"
+ )
+ 
+@@ -49,11 +52,37 @@
+ 			credentials["publisher-token"] = map[string]any{"source": source, "value": maskSecret(value)}
+ 		}
+ 		info["credentials"] = credentials
++		if prof, err := weblogin.LoadProfile(); err == nil {
++			info["profile"] = map[string]any{
++				"display_name": prof.DisplayName,
++				"username":     prof.Username,
++				"scopes":       prof.Scopes,
++				"apps":         prof.BindingLine(),
++				"expiry":       prof.ExpiryStatus(time.Now()),
++			}
++		}
+ 
+ 		return output.LocalResult(cmd, info)
+ 	}
+ 
+ 	out := cmd.OutOrStdout()
++	if prof, err := weblogin.LoadProfile(); err != nil {
++		fmt.Fprintln(out, "You haven't logged in, run voidnet login first.")
++		return fmt.Errorf("not logged in")
++	} else {
++		name := prof.DisplayName
++		if name == "" {
++			name = "(unknown)"
++		}
++		fmt.Fprintln(out, "Voidnet CLI")
++		fmt.Fprintf(out, "Name: %s\n", name)
++		if prof.Username == "" {
++			fmt.Fprintln(out, "Publisher username: not a publisher")
++		} else {
++			fmt.Fprintf(out, "Publisher username: %s\n", prof.Username)
++		}
++		fmt.Fprintln(out)
++	}
+ 	fmt.Fprintln(out, "Configuration")
+ 	fmt.Fprintln(out, "=============")
+ 	fmt.Fprintln(out)
